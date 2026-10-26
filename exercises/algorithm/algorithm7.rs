@@ -3,7 +3,6 @@
 	This question requires you to use a stack to achieve a bracket match
 */
 
-// I AM NOT DONE
 #[derive(Debug)]
 struct Stack<T> {
 	size: usize,
@@ -31,8 +30,9 @@ impl<T> Stack<T> {
 		self.size += 1;
 	}
 	fn pop(&mut self) -> Option<T> {
-		// TODO
-		None
+        let value = self.data.pop();
+        self.size = self.data.len();
+        value
 	}
 	fn peek(&self) -> Option<&T> {
 		if 0 == self.size {
@@ -101,8 +101,25 @@ impl<'a, T> Iterator for IterMut<'a, T> {
 
 fn bracket_match(bracket: &str) -> bool
 {
-	//TODO
-	true
+    let mut stack = Stack::new();
+    for character in bracket.chars() {
+        match character {
+            '(' | '[' | '{' => stack.push(character),
+            ')' | ']' | '}' => {
+                let opening = match character {
+                    ')' => '(',
+                    ']' => '[',
+                    '}' => '{',
+                    _ => unreachable!(),
+                };
+                if stack.pop() != Some(opening) {
+                    return false;
+                }
+            }
+            _ => {}
+        }
+    }
+    stack.is_empty()
 }
 
 #[cfg(test)]
@@ -139,4 +156,23 @@ mod tests {
 		let s = "";
 		assert_eq!(bracket_match(s),true);
 	}
+}
+#[cfg(test)]
+mod edge_tests {
+    use super::*;
+    #[test]
+    fn pop_tracks_size_and_brackets_ignore_text() {
+        let mut stack = Stack::new();
+        assert_eq!(stack.pop(), None);
+        stack.push(1);
+        stack.push(2);
+        assert_eq!(stack.pop(), Some(2));
+        assert_eq!(stack.len(), 1);
+        assert_eq!(stack.peek(), Some(&1));
+        assert_eq!(stack.pop(), Some(1));
+        assert!(stack.is_empty());
+        assert!(!bracket_match(")"));
+        assert!(!bracket_match("([)]"));
+        assert!(bracket_match("文字{[()]}"));
+    }
 }

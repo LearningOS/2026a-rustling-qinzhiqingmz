@@ -2,7 +2,6 @@
 	queue
 	This question requires you to use queues to implement the functionality of the stac
 */
-// I AM NOT DONE
 
 #[derive(Debug)]
 pub struct Queue<T> {
@@ -67,15 +66,17 @@ impl<T> myStack<T> {
         }
     }
     pub fn push(&mut self, elem: T) {
-        //TODO
+        self.q2.enqueue(elem);
+        while let Ok(value) = self.q1.dequeue() {
+            self.q2.enqueue(value);
+        }
+        std::mem::swap(&mut self.q1, &mut self.q2);
     }
     pub fn pop(&mut self) -> Result<T, &str> {
-        //TODO
-		Err("Stack is empty")
+        self.q1.dequeue().map_err(|_| "Stack is empty")
     }
     pub fn is_empty(&self) -> bool {
-		//TODO
-        true
+        self.q1.is_empty()
     }
 }
 
@@ -101,4 +102,18 @@ mod tests {
         assert_eq!(s.pop(), Err("Stack is empty"));
         assert_eq!(s.is_empty(), true);
 	}
+}
+#[cfg(test)]
+mod edge_tests {
+    use super::*;
+    #[test]
+    fn owned_values_and_reuse_after_emptying() {
+        let mut stack = myStack::new();
+        for value in ["a", "b", "c"] { stack.push(value.to_owned()); }
+        for expected in ["c", "b", "a"] { assert_eq!(stack.pop().unwrap(), expected); }
+        assert!(stack.is_empty());
+        assert!(stack.pop().is_err());
+        stack.push(String::from("again"));
+        assert_eq!(stack.pop().unwrap(), "again");
+    }
 }

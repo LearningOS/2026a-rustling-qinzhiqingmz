@@ -3,7 +3,6 @@
 	This problem requires you to implement a basic BFS algorithm
 */
 
-//I AM NOT DONE
 use std::collections::VecDeque;
 
 // Define a graph
@@ -31,6 +30,22 @@ impl Graph {
 		//TODO
 
         let mut visit_order = vec![];
+        if start >= self.adj.len() {
+            return visit_order;
+        }
+        let mut visited = vec![false; self.adj.len()];
+        let mut queue = VecDeque::new();
+        visited[start] = true;
+        queue.push_back(start);
+        while let Some(vertex) = queue.pop_front() {
+            visit_order.push(vertex);
+            for &neighbor in &self.adj[vertex] {
+                if !visited[neighbor] {
+                    visited[neighbor] = true;
+                    queue.push_back(neighbor);
+                }
+            }
+        }
         visit_order
     }
 }
@@ -85,3 +100,19 @@ mod tests {
     }
 }
 
+
+#[cfg(test)]
+mod edge_tests {
+    use super::*;
+    #[test]
+    fn empty_invalid_start_and_disconnected_vertices() {
+        assert!(Graph::new(0).bfs_with_return(0).is_empty());
+        let mut graph = Graph::new(4);
+        graph.add_edge(0, 1);
+        graph.add_edge(0, 1);
+        graph.add_edge(0, 0);
+        assert_eq!(graph.bfs_with_return(0), [0, 1]);
+        assert_eq!(graph.bfs_with_return(2), [2]);
+        assert!(graph.bfs_with_return(4).is_empty());
+    }
+}

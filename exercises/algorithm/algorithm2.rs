@@ -2,7 +2,6 @@
 	double linked list reverse
 	This problem requires you to reverse a doubly linked list
 */
-// I AM NOT DONE
 
 use std::fmt::{self, Display, Formatter};
 use std::ptr::NonNull;
@@ -60,6 +59,9 @@ impl<T> LinkedList<T> {
     }
 
     pub fn get(&mut self, index: i32) -> Option<&T> {
+        if index < 0 {
+            return None;
+        }
         self.get_ith_node(self.start, index)
     }
 
@@ -73,8 +75,27 @@ impl<T> LinkedList<T> {
         }
     }
 	pub fn reverse(&mut self){
-		// TODO
+        let mut current = self.start;
+        while let Some(mut pointer) = current {
+            // SAFETY: The list owns this node; traverse its old next pointer.
+            unsafe {
+                let node = pointer.as_mut();
+                current = node.next;
+                std::mem::swap(&mut node.next, &mut node.prev);
+            }
+        }
+        std::mem::swap(&mut self.start, &mut self.end);
 	}
+}
+
+impl<T> Drop for LinkedList<T> {
+    fn drop(&mut self) {
+        while let Some(node) = self.start.take() {
+            // SAFETY: Reclaim each uniquely owned allocation exactly once.
+            let owned = unsafe { Box::from_raw(node.as_ptr()) };
+            self.start = owned.next;
+        }
+    }
 }
 
 impl<T> Display for LinkedList<T>
@@ -156,4 +177,34 @@ mod tests {
 			assert_eq!(reverse_vec[i],*list.get(i as i32).unwrap());
 		}
 	}
+}
+#[cfg(test)]
+mod edge_tests {
+    use super::*;
+    #[test]
+    fn empty_singleton_reverse_twice_and_append() {
+        let mut list = LinkedList::new();
+        list.reverse();
+        assert!(list.start.is_none() && list.end.is_none());
+        list.add(String::from("a"));
+        list.reverse();
+        assert_eq!(list.get(0).map(String::as_str), Some("a"));
+        list.add(String::from("b"));
+        list.add(String::from("c"));
+        list.reverse();
+        let mut cursor = list.end;
+        for expected in ["a", "b", "c"] {
+            let node = unsafe { cursor.unwrap().as_ref() };
+            assert_eq!(node.val, expected);
+            cursor = node.prev;
+        }
+        assert!(cursor.is_none());
+        list.reverse();
+        list.add(String::from("d"));
+        assert_eq!(list.length, 4);
+        for (i, expected) in ["a", "b", "c", "d"].iter().enumerate() {
+            assert_eq!(list.get(i as i32).map(String::as_str), Some(*expected));
+        }
+        assert_eq!(list.get(-1), None);
+    }
 }

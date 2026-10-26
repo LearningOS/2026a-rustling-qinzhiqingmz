@@ -2,7 +2,6 @@
 	graph
 	This problem requires you to implement a basic graph functio
 */
-// I AM NOT DONE
 
 use std::collections::{HashMap, HashSet};
 use std::fmt;
@@ -29,7 +28,10 @@ impl Graph for UndirectedGraph {
         &self.adjacency_table
     }
     fn add_edge(&mut self, edge: (&str, &str, i32)) {
-        //TODO
+        self.add_node(edge.0);
+        self.add_node(edge.1);
+        self.adjacency_table.get_mut(edge.0).unwrap().push((edge.1.to_owned(), edge.2));
+        self.adjacency_table.get_mut(edge.1).unwrap().push((edge.0.to_owned(), edge.2));
     }
 }
 pub trait Graph {
@@ -37,11 +39,18 @@ pub trait Graph {
     fn adjacency_table_mutable(&mut self) -> &mut HashMap<String, Vec<(String, i32)>>;
     fn adjacency_table(&self) -> &HashMap<String, Vec<(String, i32)>>;
     fn add_node(&mut self, node: &str) -> bool {
-        //TODO
-		true
+        match self.adjacency_table_mutable().entry(node.to_owned()) {
+            std::collections::hash_map::Entry::Vacant(entry) => {
+                entry.insert(Vec::new());
+                true
+            }
+            std::collections::hash_map::Entry::Occupied(_) => false,
+        }
     }
     fn add_edge(&mut self, edge: (&str, &str, i32)) {
-        //TODO
+        self.add_node(edge.0);
+        self.add_node(edge.1);
+        self.adjacency_table_mutable().get_mut(edge.0).unwrap().push((edge.1.to_owned(), edge.2));
     }
     fn contains(&self, node: &str) -> bool {
         self.adjacency_table().get(node).is_some()
@@ -80,5 +89,29 @@ mod test_undirected_graph {
         for edge in expected_edges.iter() {
             assert_eq!(graph.edges().contains(edge), true);
         }
+    }
+}
+#[cfg(test)]
+mod edge_tests {
+    use super::*;
+    struct Directed { table: HashMap<String, Vec<(String, i32)>> }
+    impl Graph for Directed {
+        fn new() -> Self { Self { table: HashMap::new() } }
+        fn adjacency_table(&self) -> &HashMap<String, Vec<(String, i32)>> { &self.table }
+        fn adjacency_table_mutable(&mut self) -> &mut HashMap<String, Vec<(String, i32)>> { &mut self.table }
+    }
+    #[test]
+    fn node_idempotence_and_default_directed_edge() {
+        let mut graph = UndirectedGraph::new();
+        assert!(graph.add_node("a"));
+        assert!(!graph.add_node("a"));
+        graph.add_edge(("a", "b", -5));
+        assert!(!graph.add_node("a"));
+        assert!(graph.contains("a") && graph.contains("b"));
+        assert_eq!(graph.edges().len(), 2);
+        let mut directed = Directed::new();
+        directed.add_edge(("a", "b", 3));
+        assert_eq!(directed.edges().len(), 1);
+        assert!(directed.adjacency_table()["b"].is_empty());
     }
 }

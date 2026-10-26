@@ -2,7 +2,6 @@
 	heap
 	This question requires you to implement a binary heap function
 */
-// I AM NOT DONE
 
 use std::cmp::Ord;
 use std::default::Default;
@@ -37,7 +36,17 @@ where
     }
 
     pub fn add(&mut self, value: T) {
-        //TODO
+        self.items.push(value);
+        self.count += 1;
+        let mut index = self.count;
+        while index > 1 {
+            let parent = self.parent_idx(index);
+            if !(self.comparator)(&self.items[index], &self.items[parent]) {
+                break;
+            }
+            self.items.swap(index, parent);
+            index = parent;
+        }
     }
 
     fn parent_idx(&self, idx: usize) -> usize {
@@ -57,8 +66,13 @@ where
     }
 
     fn smallest_child_idx(&self, idx: usize) -> usize {
-        //TODO
-		0
+        let left = self.left_child_idx(idx);
+        let right = self.right_child_idx(idx);
+        if right <= self.count && (self.comparator)(&self.items[right], &self.items[left]) {
+            right
+        } else {
+            left
+        }
     }
 }
 
@@ -84,8 +98,21 @@ where
     type Item = T;
 
     fn next(&mut self) -> Option<T> {
-        //TODO
-		None
+        if self.count == 0 {
+            return None;
+        }
+        let result = self.items.swap_remove(1);
+        self.count -= 1;
+        let mut index = 1;
+        while self.children_present(index) {
+            let child = self.smallest_child_idx(index);
+            if !(self.comparator)(&self.items[child], &self.items[index]) {
+                break;
+            }
+            self.items.swap(index, child);
+            index = child;
+        }
+        Some(result)
     }
 }
 
@@ -150,5 +177,26 @@ mod tests {
         assert_eq!(heap.next(), Some(4));
         heap.add(1);
         assert_eq!(heap.next(), Some(2));
+    }
+}
+#[cfg(test)]
+mod edge_tests {
+    use super::*;
+    #[test]
+    fn duplicates_negative_values_and_refill() {
+        let values = vec![0, -4, 3, 3, 1, -4, 9, 2];
+        let mut expected = values.clone();
+        expected.sort();
+        let mut min = Heap::new_min();
+        let mut max = Heap::new_max();
+        for value in values { min.add(value); max.add(value); }
+        assert_eq!(min.by_ref().collect::<Vec<_>>(), expected);
+        expected.reverse();
+        assert_eq!(max.by_ref().collect::<Vec<_>>(), expected);
+        assert_eq!(min.next(), None);
+        assert_eq!(min.len(), 0);
+        min.add(42);
+        assert_eq!(min.next(), Some(42));
+        assert!(min.is_empty());
     }
 }

@@ -2,7 +2,6 @@
 	single linked list merge
 	This problem requires you to merge two ordered singly linked lists into one ordered singly linked list
 */
-// I AM NOT DONE
 
 use std::fmt::{self, Display, Formatter};
 use std::ptr::NonNull;
@@ -57,6 +56,9 @@ impl<T> LinkedList<T> {
     }
 
     pub fn get(&mut self, index: i32) -> Option<&T> {
+        if index < 0 {
+            return None;
+        }
         self.get_ith_node(self.start, index)
     }
 
@@ -69,15 +71,58 @@ impl<T> LinkedList<T> {
             },
         }
     }
-	pub fn merge(list_a:LinkedList<T>,list_b:LinkedList<T>) -> Self
-	{
-		//TODO
-		Self {
-            length: 0,
-            start: None,
-            end: None,
+    pub fn merge(mut list_a: Self, mut list_b: Self) -> Self
+    where
+        T: Ord,
+    {
+        let length = list_a.length.checked_add(list_b.length).expect("List length overflow");
+        let mut merged = Self::new();
+        while let (Some(a), Some(b)) = (list_a.start, list_b.start) {
+            // SAFETY: Both heads point to live nodes owned by their input lists.
+            let take_a = unsafe { a.as_ref().val <= b.as_ref().val };
+            let source = if take_a { &mut list_a } else { &mut list_b };
+            let mut node = source.start.take().unwrap();
+            // SAFETY: Detach the uniquely owned source head before appending it.
+            unsafe {
+                source.start = node.as_ref().next;
+                node.as_mut().next = None;
+            }
+            source.length -= 1;
+            if source.start.is_none() {
+                source.end = None;
+            }
+            if let Some(mut tail) = merged.end {
+                // SAFETY: merged owns its tail, and node is detached from source.
+                unsafe { tail.as_mut().next = Some(node) };
+            } else {
+                merged.start = Some(node);
+            }
+            merged.end = Some(node);
         }
-	}
+        let rest = if list_a.start.is_some() { &mut list_a } else { &mut list_b };
+        if let Some(mut tail) = merged.end {
+            // SAFETY: Transfer the remaining owned chain into the merged list.
+            unsafe { tail.as_mut().next = rest.start.take() };
+        } else {
+            merged.start = rest.start.take();
+        }
+        if rest.end.is_some() {
+            merged.end = rest.end.take();
+        }
+        rest.length = 0;
+        merged.length = length;
+        merged
+    }
+}
+
+impl<T> Drop for LinkedList<T> {
+    fn drop(&mut self) {
+        while let Some(node) = self.start.take() {
+            // SAFETY: Each node came from Box::into_raw and is reclaimed once.
+            let owned = unsafe { Box::from_raw(node.as_ptr()) };
+            self.start = owned.next;
+        }
+    }
 }
 
 impl<T> Display for LinkedList<T>
@@ -170,4 +215,32 @@ mod tests {
 			assert_eq!(target_vec[i],*list_c.get(i as i32).unwrap());
 		}
 	}
+}
+#[cfg(test)]
+mod edge_tests {
+    use super::*;
+    #[test]
+    fn empty_duplicate_and_owned_values() {
+        let mut a = LinkedList::new();
+        a.add(String::from("a"));
+        a.add(String::from("a"));
+        let mut b = LinkedList::new();
+        b.add(String::from("a"));
+        b.add(String::from("z"));
+        let mut merged = LinkedList::merge(a, b);
+        assert_eq!(merged.length, 4);
+        for (i, expected) in ["a", "a", "a", "z"].iter().enumerate() {
+            assert_eq!(merged.get(i as i32).map(String::as_str), Some(*expected));
+        }
+        assert_eq!(merged.get(-1), None);
+        assert_eq!(merged.get(4), None);
+        merged.add(String::from("zz"));
+        assert_eq!(merged.get(4).map(String::as_str), Some("zz"));
+        let mut empty = LinkedList::<String>::merge(LinkedList::new(), LinkedList::new());
+        assert_eq!(empty.length, 0);
+        assert_eq!(empty.get(0), None);
+        let mut one = LinkedList::merge(LinkedList::new(), merged);
+        assert_eq!(one.length, 5);
+        assert_eq!(one.get(0).map(String::as_str), Some("a"));
+    }
 }
